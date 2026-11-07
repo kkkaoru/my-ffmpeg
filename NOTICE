@@ -1,0 +1,17 @@
+These are unofficial builds. They are not made, endorsed or supported by the
+FFmpeg project. FFmpeg is a trademark of Fabrice Bellard, originator of the
+FFmpeg project.
+
+ffmpeg and ffprobe are built from unmodified FFmpeg source, licensed under the
+GNU Lesser General Public License version 2.1 or later (LICENSE-LGPL-2.1.txt).
+No GPL or nonfree component is enabled. The exact configure line is in
+configure-line.txt. The FFmpeg source of this build is attached to the same
+GitHub release, with the scripts that build it in the tagged repository:
+https://github.com/kkkaoru/my-ffmpeg
+
+The av and video flavors statically link unmodified dav1d, licensed under the
+BSD 2-Clause license (LICENSE-dav1d.txt). Its source is attached to the release.
+
+The Windows binaries statically link the mingw-w64 runtime
+(LICENSE-mingw-w64-runtime.txt) and LLVM's compiler-rt, licensed under the
+Apache License 2.0 with LLVM Exceptions (LICENSE-llvm.txt), from llvm-mingw.

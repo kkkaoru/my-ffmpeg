@@ -1,0 +1,19 @@
+# Reproduces the local build. Releases are made with ./release.sh on a Mac, not here.
+name: build
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install ninja ffmpeg
+      - run: ./build.sh
+      - run: ./test.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: my-ffmpeg
+          path: |
+            out/
+            !out/test-report.txt
