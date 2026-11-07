@@ -97,10 +97,13 @@ make_fixtures() {
 # The app's commands, verbatim: src-tauri/src/engines.rs and face.rs.
 probe() { "$1" -v error -print_format json -show_format -show_streams "$2"; }
 audio_wav() { "$1" -hide_banner -nostdin -i "$2" -vn -ac 1 -ar 16000 -c:a pcm_s16le -y "$3"; }
-FRAME_FILTER='fps=1,scale=640:640:force_original_aspect_ratio=decrease,pad=640:640:(ow-iw)/2:(oh-ih)/2'
+FRAME_FILTER='fps=1:eof_action=pass,scale=640:640:force_original_aspect_ratio=decrease,pad=640:640:(ow-iw)/2:(oh-ih)/2'
 faces() { # ffmpeg video [extra input options]
+  faces_full "$@" -skip_frame nokey
+}
+faces_full() { # the app's second pass, when key frames cover under half of the video
   local bin=$1 video=$2; shift 2
-  "$bin" -hide_banner -nostdin -loglevel error "$@" -skip_frame nokey -i "$video" -an -vf "$FRAME_FILTER" -pix_fmt rgb24 -f rawvideo -
+  "$bin" -hide_banner -nostdin -loglevel error -fflags +genpts "$@" -i "$video" -an -vf "$FRAME_FILTER" -pix_fmt rgb24 -f rawvideo -
 }
 frames_ok() { # file: a whole number of 640x640 RGB frames, at least one
   local size; size=$(stat -f %z "$1")
@@ -151,14 +154,8 @@ test_macos() {
       probe "$bin_fp" "$video" >"$work/probe.json" 2>"$work/err" || fail "$label probe: $(tail -1 "$work/err")"
       if [ "$flavor" != audio ]; then
         if grep -q '"width": [1-9]' "$work/probe.json"; then pass "$label probe width"; else fail "$label probe found no video size"; fi
-        case "$name" in
-          # shortcut: AVI has no pts, so with B-frames -skip_frame nokey leaves timestamps fps drops, in upstream FFmpeg too; a full decode must still work.
-          h264-*.avi) check "$label decodes" "$bin_mp" -hide_banner -nostdin -loglevel error -i "$video" -an -f rawvideo -y /dev/null ;;
-          *)
-            faces_check "$label faces+vt" "$bin_mp" "$video" -hwaccel videotoolbox
-            faces_check "$label faces" "$bin_mp" "$video"
-            ;;
-        esac
+        faces_check "$label faces+vt" "$bin_mp" "$video" -hwaccel videotoolbox
+        faces_check "$label faces" "$bin_mp" "$video"
       fi
       if [ "$flavor" != video ]; then
         if grep -q '"sample_rate"' "$work/probe.json"; then pass "$label probe audio"; else fail "$label probe found no audio"; fi
@@ -170,6 +167,7 @@ test_macos() {
   done
   test_decoder_choice "$d/av/ffmpeg"
   test_rotation "$d/av/ffmpeg"
+  test_sparse_keyframes "$d/av/ffmpeg"
 }
 
 compare() { # ffmpeg ffprobe video name
@@ -210,6 +208,15 @@ test_rotation() { # ffmpeg: a 1280x720 video turned 90 degrees fills the height,
   faces "$1" "$videos/rotated-h264-aac.mp4" >"$work/rot.rgb" 2>"$work/err" || { fail "rotation: $(tail -1 "$work/err")"; return; }
   faces "$1" "$videos/h264-aac.mp4" >"$work/flat.rgb" 2>/dev/null
   if cmp -s "$work/rot.rgb" "$work/flat.rgb"; then fail "rotation was ignored"; else pass "rotation is applied"; fi
+}
+
+test_sparse_keyframes() { # ffmpeg: one key frame in 10 s gives one frame, then the full pass gives the rest
+  local frames
+  [ -s "$work/one-key.mp4" ] || "$fixture" -hide_banner -loglevel error -y -f lavfi -i testsrc2=size=640x360:rate=30:duration=10 -c:v libx264 -g 1000 -pix_fmt yuv420p "$work/one-key.mp4"
+  frames=$(($(faces "$1" "$work/one-key.mp4" -hwaccel videotoolbox 2>/dev/null | wc -c) / (640 * 640 * 3)))
+  if [ "$frames" -eq 1 ]; then pass "one key frame gives 1 frame"; else fail "one key frame gives $frames frames"; fi
+  frames=$(($(faces_full "$1" "$work/one-key.mp4" -hwaccel videotoolbox 2>/dev/null | wc -c) / (640 * 640 * 3)))
+  if [ "$frames" -ge 10 ]; then pass "full pass gives $frames frames"; else fail "full pass gives $frames frames"; fi
 }
 
 test_windows() {
