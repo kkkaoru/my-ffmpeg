@@ -21,9 +21,9 @@ Each flavor is the profiles in [`profiles/`](profiles) put together: `common` pl
 Everything starts from `--disable-everything --disable-autodetect`. No network: only the `file` and `pipe` protocols.
 
 - **Containers:** mov (mp4, m4v, mov), matroska (mkv, webm), avi, mpegts (ts, mts, m2ts), mxf. With audio: also wav, aiff, flac, mp3, ogg, aac, ac3, eac3.
-- **Video decoders:** H.264, HEVC, AV1 (dav1d), VP8, VP9, MPEG-2, MPEG-4 part 2, ProRes, DNxHD/DNxHR, MJPEG.
-- **Audio decoders:** AAC, AAC LATM, MP3, MP2, Opus, Vorbis, FLAC, ALAC, AC-3, E-AC-3, DTS core, SMPTE 302M, common PCM (including Blu-ray and DVD).
-- **Hardware decoding (macOS):** VideoToolbox for H.264, HEVC, MPEG-2, MPEG-4, ProRes, VP9. AV1 always decodes on the CPU with dav1d, so it also works on Macs without an AV1 hardware decoder.
+- **Video decoders:** H.264, HEVC, AV1 (dav1d), VP8, VP9, MPEG-1, MPEG-2, MPEG-4 part 2, ProRes, DNxHD/DNxHR, MJPEG, DV, raw video.
+- **Audio decoders:** AAC, AAC LATM, MP3, MP2, MP1, Opus, Vorbis, FLAC, ALAC, AC-3, E-AC-3, TrueHD, MLP, DTS core, SMPTE 302M, MS ADPCM, IMA ADPCM, common PCM (including Blu-ray and DVD).
+- **Hardware decoding (macOS):** VideoToolbox for H.264, HEVC, MPEG-1, MPEG-2, MPEG-4, ProRes, VP9. AV1 always decodes on the CPU with dav1d, so it also works on Macs without an AV1 hardware decoder.
 - **Filters:** `aresample`, `fps`, `scale`, `pad`, and those FFmpeg always pulls in (such as `format`, `transpose` for rotated videos).
 - **Output:** `pcm_s16le` in WAV, `rawvideo`.
 

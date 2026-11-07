@@ -5,6 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 root=$PWD
+# shellcheck disable=SC1091
 . ./versions.sh
 tag=${1:?usage: ./release.sh TAG}
 platforms=${PLATFORMS:-macos-arm64 windows-x64}

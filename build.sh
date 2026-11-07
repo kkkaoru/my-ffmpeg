@@ -4,6 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 root=$PWD
+# shellcheck disable=SC1091
 . ./versions.sh
 export TMPDIR=$root/tmp
 # The caller's flags would reach meson and pkgconf.

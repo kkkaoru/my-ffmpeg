@@ -7,6 +7,7 @@ set -uo pipefail
 cd "$(dirname "$0")" || exit
 root=$PWD
 export TMPDIR=$root/tmp
+# shellcheck disable=SC1091
 . ./versions.sh
 fixture=${FIXTURE_FFMPEG:-ffmpeg}
 ref=${REF_FFMPEG:-}
@@ -60,6 +61,15 @@ hevc-eac3.ts|-c:v libx265 -x265-params log-level=error -pix_fmt yuv420p|-c:a eac
 mpeg2-pcm_s16le.mxf|-c:v mpeg2video -pix_fmt yuv422p -b:v 20M -g 1|-c:a pcm_s16le
 h264-pcm_s24le.mxf|-c:v libx264 -pix_fmt yuv420p -profile:v high -x264-params intra-refresh=0|-c:a pcm_s24le
 dnxhd-pcm_s16le.mxf|-c:v dnxhd -profile:v dnxhr_lb -pix_fmt yuv422p|-c:a pcm_s16le
+dvvideo-pcm_s16le.avi|-c:v dvvideo -s 720x480 -r 30000/1001 -pix_fmt yuv411p|-c:a pcm_s16le
+dvvideo-pcm_s16be.mov|-c:v dvvideo -s 720x576 -r 25 -pix_fmt yuv420p|-c:a pcm_s16be
+mpeg1-mp2.mkv|-c:v mpeg1video -pix_fmt yuv420p|-c:a mp2
+mpeg1-mp2.avi|-c:v mpeg1video -pix_fmt yuv420p|-c:a mp2
+rawvideo-adpcm_ms.avi|-c:v rawvideo -s 320x180 -pix_fmt yuv420p|-c:a adpcm_ms
+rawvideo-adpcm_ima_wav.avi|-c:v rawvideo -s 320x180 -pix_fmt bgr24|-c:a adpcm_ima_wav
+rawvideo-pcm_s16le.mov|-c:v rawvideo -s 320x180 -pix_fmt uyvy422|-c:a pcm_s16le
+h264-truehd.mkv|-c:v libx264 -pix_fmt yuv420p|-c:a truehd -strict -2 -ac 2
+h264-mlp.mkv|-c:v libx264 -pix_fmt yuv420p|-c:a mlp -strict -2 -ac 2
 '
 
 make_fixtures() {
@@ -71,6 +81,11 @@ make_fixtures() {
     "$fixture" -hide_banner -loglevel error -y $input $vargs $aargs "$videos/$name" </dev/null ||
       fail "fixture $name could not be made"
   done <<<"$FIXTURES"
+  # No encoder writes MP1, so this is silent Layer I frames by hand: 48 kHz mono 32 kb/s is 32 bytes, zero allocation.
+  if [ ! -s "$videos/h264-mp1.mkv" ]; then
+    python3 -c "import sys; sys.stdout.buffer.write((b'\xff\xff\x14\xc0' + bytes(28)) * 375)" >"$work/silence.mp1"
+    "$fixture" -hide_banner -loglevel error -y -i "$videos/h264-aac.mp4" -f mp3 -i "$work/silence.mp1" -map 0:v -map 1:a -c copy -shortest "$videos/h264-mp1.mkv"
+  fi
   # A phone video: the same pixels with a rotation the player must apply.
   [ -s "$videos/rotated-h264-aac.mp4" ] || "$fixture" -hide_banner -loglevel error -y -display_rotation 90 -i "$videos/h264-aac.mp4" -c copy "$videos/rotated-h264-aac.mp4"
   # What must be refused: a codec and a container left out of every flavor.
@@ -137,7 +152,7 @@ test_macos() {
       if [ "$flavor" != audio ]; then
         if grep -q '"width": [1-9]' "$work/probe.json"; then pass "$label probe width"; else fail "$label probe found no video size"; fi
         case "$name" in
-          # shortcut: upstream FFmpeg too gets no frames from x264 in AVI under -skip_frame nokey; a full decode must still work.
+          # shortcut: AVI has no pts, so with B-frames -skip_frame nokey leaves timestamps fps drops, in upstream FFmpeg too; a full decode must still work.
           h264-*.avi) check "$label decodes" "$bin_mp" -hide_banner -nostdin -loglevel error -i "$video" -an -f rawvideo -y /dev/null ;;
           *)
             faces_check "$label faces+vt" "$bin_mp" "$video" -hwaccel videotoolbox
